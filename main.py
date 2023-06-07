@@ -18,13 +18,15 @@ mysql_user = os.getenv("MYSQL_USER", "root")
 mysql_pwd = os.getenv("MYSQL_PWD", "root")
 mysql_db = os.getenv("MYSQL_DB", "db")
 
+mysql_con = pymysql.connect(host=mysql_host, port=mysql_port, user=mysql_user, password=mysql_pwd, database=mysql_db)
+
 db_use = "mgdb"
 
 def crawler_nong_yao():
   def parse_lines(bs) -> list:
     lines_list = []
     index = 2
-    for index in range(2, 21):
+    for index in range(2, 22):
       line_list = []
       djzh = bs.select("#tab > tr:nth-child({}) > td:nth-child(1) > span".format(index))
       nymc = bs.select("#tab > tr:nth-child({}) > td:nth-child(2) > span".format(index))
@@ -39,7 +41,9 @@ def crawler_nong_yao():
       line_list.append(jx[0].text.strip())
       line_list.append(zhl[0].text.strip())
       line_list.append(yxrq[0].text.strip())
-      line_list.append(djzcyr[0].text.strip())
+      line_list.headers = {
+      "Content-Type": "application/x-www-form-urlencoded"
+    }append(djzcyr[0].text.strip())
       lines_list.append(line_list)
     return lines_list
   url_page1 = "https://www.icama.cn/BasicdataSystem/pesticideRegistration/queryselect.do"
@@ -57,7 +61,10 @@ def crawler_nong_yao():
   for index in range(1, total_page):
     time.sleep(3)
     print("get page {} , total {}".format(index, total_page))
-    result = requests.post(url_page1, param.format(index))
+    headers = {
+      "Content-Type": "application/x-www-form-urlencoded"
+    }
+    result = requests.post(url_page1, param.format(index), headers=headers)
     if result.status_code != 200:
       raise Exception("crawle failed in page {} status code {}, "+
                       "result is {} ".format(index, result.status_code, result))
@@ -90,16 +97,16 @@ def save(line):
 
 def save_mysql(line):
   try:
-      mysql_con = pymysql.connect(host=mysql_host, port=mysql_port, user=mysql_user, password=mysql_pwd, database=mysql_db)
-      mysql_con.autocommit(True)
+      #mysql_con.autocommit(True)
       cursor = mysql_con.cursor()
       cursor.execute("insert into nz_cralwe_chinapesticide (djzh, nymc, nylb, jx, zhl, yxrq, djzcyr) values (%s, %s, %s, %s, %s, %s, %s)",
                   (line[0], line[1], line[2], line[3], line[4], line[5], line[6]))
       print("data {} inserted to mysql".format(line))
   finally:
-      mysql_con.close()
       cursor.close()
-        
 
 if __name__ == "__main__":
-  crawler_nong_yao()
+    try:
+        crawler_nong_yao()
+    finally:
+      mysql_con.close()
